@@ -9,8 +9,7 @@ router.use("/api/users", users);
 
 //If no API routes match
 router.use(function(req, res){
-    if(!req.route) { res.status(404)}
-    res.sendFile();
+    return res.status(404).json({success: false, error: "Undefined"})
 });
 
 module.exports = router;

@@ -2,13 +2,7 @@ var mysql = require('mysql');
 const { promisify } = require('util')
 require('dotenv').config
 
-const pool = mysql.createPool({
-  host     : process.env.HOST,
-  user     : process.env.USER,
-  password : process.env.PASSWORD,
-  database : process.env.DATABASE,
-  port     : process.env.DB_PORT
-})
+const pool = mysql.createPool(process.env.DATABASE_URL)
 
 pool.getConnection((e, conn) => {
   if(e){
