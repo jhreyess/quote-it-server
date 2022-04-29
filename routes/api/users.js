@@ -5,54 +5,56 @@ const validateLoginInput = require("../../validations/login");
 const validateRegisterInput = require("../../validations/register");
 const db = require('../../database')
 
-router.post('/register', (req, res) => {
-    console.log("[server] Someone trying to register")
+router.post('/register', async (req, res) => {
+    
+    // Form validation
     const {
         errors,
         isValid
     } = validateRegisterInput(req.body);
     
     // Check validation
-    if (!isValid) {return res.status(400).json({success: false, error: errors});}
+    if (!isValid) { return res.status(400).json({success: false, error: errors});}
 
     //if no errors
-    const newuser = {
+    const newUser = {
         username: req.body.username,
         email: req.body.email,
         password: req.body.password,
     };
 
     // Check if user already exists
-    db.query("SELECT * FROM users WHERE (email) = ? OR (username) = ? LIMIT 1", (newuser.email, newuser.username), (err, result, fields) => {
-        if(err) throw err
-        var duplicated = result[0]
+    const findUser = (email, username) => {
+        return new Promise((resolve, reject) => {
+            db.query("SELECT * FROM users WHERE (email) = ? OR (username) = ? LIMIT 1", [email, username], (err, result) => {
+                if(err) return reject({status: 500, success: false, error: err})
+                resolve(result[0])
+            })
+        })
+    }
 
-        if(duplicated){
-            
-            // If email matches
-            if(duplicated.email === newuser.email){
+    try{
+        const duplicated = await findUser(newUser.email, newUser.username)
+        if(duplicated){ 
+            if(duplicated.email === newUser.email){
                 return res.status(400).json({success: false, error: "This email already exists"})
-            // Username matches
-            }else if(duplicated.username === newuser.username){
+            }else if(duplicated.username === newUser.username){
                 return res.status(400).json({success: false, error: "This username is already taken"})
             }
         }
 
-        // If no duplicated
-        bcrypt.hash(newuser.password, 10, function(err, hash){        
-            if(err) throw err;
-            newuser.password = hash;
-            db.query("INSERT INTO users SET ?", newuser, (err, res, fields) => {
-                if(err) throw err
-            })
-            .then(console.log("[server] User registered"))
-            .catch(err => console.log(err));
+        // If no exists
+        newUser.password = await bcrypt.hash(newUser.password, 10)
+        db.query("INSERT INTO users SET ?", newUser, () => {
+            return res.status(200).json({success: true})
         })
-    })
+    }catch(e){
+        return res.status(e.status).json({success: e.success, error: e.error})
+    }
 });
 
-router.post('/login', (req, res) => {
-    console.log("[server] Someone trying to login")
+router.post('/login', async (req, res) => {
+    
     // Form validation
     const {
         errors,
@@ -60,34 +62,37 @@ router.post('/login', (req, res) => {
     } = validateLoginInput(req.body);
 
     // If errors return a bad response
-    if(!isValid){return res.status(400).json({success: false, error: errors})}
+    if(!isValid){ return res.status(400).json({success: false, error: errors}) }
+
+    const findUserByEmail = (email) => {
+        return new Promise((resolve, reject) => {
+            db.query("SELECT * FROM users WHERE (email) = ? LIMIT 1", [email], (err, result) => {
+                if(err) return reject({status: 500, success: false, error: err})
+                resolve(result[0])                
+            });
+        })
+    }
+
+    const compareUserPassword = (first, second) => {
+        return new Promise((resolve, reject) => {
+            bcrypt.compare(first, second, (err, valid) => {
+                if(err) return reject({status: 500, success: false, error: err})
+                resolve(valid)
+            })
+        })
+    }
 
     // if no errors 
-
-    // MySQL find user - if not return 404
-    db.query("SELECT * FROM users WHERE (email) = ? LIMIT 1", req.body.email, (err, result, fields) => {
-        
-        if(err) throw err
-        var user = result[0]
-        if(!user){
-            return res.status(404).json({
-                success: false,
-                error: "Email not found"
-            });
+    try{
+        const user = await findUserByEmail(req.body.email)
+        if(user){
+            const validPassword = await compareUserPassword(req.body.password, user.password)
+            if(validPassword) return res.status(200).json({success: true})
         }
-
-        // Compare password
-        bcrypt.compare(req.body.password, user.password, function(err, isValid){
-            if(err) throw err;
-            if(isValid){
-                return res.json({success: true}); //OK
-            }else{
-                return res.status(401).json({success: false, error: "Email or password incorrect"});
-            }
-        });
-
-    });
-
+        return res.status(401).json({success: false, error: "Email or password incorrect"})
+    }catch(e){
+        return res.status(e.status).json({success: e.success, error: e.error})
+    }
 });
 
 module.exports = router;
