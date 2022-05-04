@@ -24,17 +24,8 @@ router.post('/register', async (req, res) => {
     };
 
     // Check if user already exists
-    const findUser = (email, username) => {
-        return new Promise((resolve, reject) => {
-            db.query("SELECT * FROM users WHERE (email) = ? OR (username) = ? LIMIT 1", [email, username], (err, result) => {
-                if(err) return reject({status: 500, success: false, error: err})
-                resolve(result[0])
-            })
-        })
-    }
-
     try{
-        const duplicated = await findUser(newUser.email, newUser.username)
+        const duplicated = await db.oneOrNone("SELECT * FROM users WHERE (email) = $1 OR (username) = $2 LIMIT 1", [newUser.email, newUser.username])
         if(duplicated){ 
             if(duplicated.email === newUser.email){
                 return res.status(400).json({success: false, error: "This email already exists"})
@@ -45,11 +36,10 @@ router.post('/register', async (req, res) => {
 
         // If no exists
         newUser.password = await bcrypt.hash(newUser.password, 10)
-        db.query("INSERT INTO users SET ?", newUser, () => {
-            return res.status(200).json({success: true})
-        })
+        await db.none("INSERT INTO users(${this:name}) VALUES(${this:csv})", newUser)
+        return res.status(200).json({success: true})
     }catch(e){
-        return res.status(e.status).json({success: e.success, error: e.error})
+        throw e
     }
 });
 
@@ -64,34 +54,16 @@ router.post('/login', async (req, res) => {
     // If errors return a bad response
     if(!isValid){ return res.status(400).json({success: false, error: errors}) }
 
-    const findUserByEmail = (email) => {
-        return new Promise((resolve, reject) => {
-            db.query("SELECT * FROM users WHERE (email) = ? LIMIT 1", [email], (err, result) => {
-                if(err) return reject({status: 500, success: false, error: err})
-                resolve(result[0])                
-            });
-        })
-    }
-
-    const compareUserPassword = (first, second) => {
-        return new Promise((resolve, reject) => {
-            bcrypt.compare(first, second, (err, valid) => {
-                if(err) return reject({status: 500, success: false, error: err})
-                resolve(valid)
-            })
-        })
-    }
-
     // if no errors 
     try{
-        const user = await findUserByEmail(req.body.email)
+        const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1 LIMIT 1", req.body.email)
         if(user){
-            const validPassword = await compareUserPassword(req.body.password, user.password)
+            const validPassword = await bcrypt.compare(req.body.password, user.password)
             if(validPassword) return res.status(200).json({success: true})
         }
         return res.status(401).json({success: false, error: "Email or password incorrect"})
     }catch(e){
-        return res.status(e.status).json({success: e.success, error: e.error})
+        throw e
     }
 });
 
