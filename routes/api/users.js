@@ -28,9 +28,9 @@ router.post('/register', async (req, res) => {
         const duplicated = await db.oneOrNone("SELECT * FROM users WHERE (email) = $1 OR (username) = $2 LIMIT 1", [newUser.email, newUser.username])
         if(duplicated){ 
             if(duplicated.email === newUser.email){
-                return res.status(400).json({success: false, error: "This email already exists"})
+                return res.status(409).json({success: false, error: "This email already exists"})
             }else if(duplicated.username === newUser.username){
-                return res.status(400).json({success: false, error: "This username is already taken"})
+                return res.status(409).json({success: false, error: "This username is already taken"})
             }
         }
 
