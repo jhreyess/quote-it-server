@@ -1,9 +1,11 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken')
 
 const validateLoginInput = require("../../validations/login");
 const validateRegisterInput = require("../../validations/register");
 const db = require('../../database')
+
 
 router.post('/register', async (req, res) => {
     
@@ -23,6 +25,10 @@ router.post('/register', async (req, res) => {
         password: req.body.password,
     };
 
+
+      // save user token
+      user.token = token;
+
     // Check if user already exists
     try{
         const duplicated = await db.oneOrNone("SELECT * FROM users WHERE (email) = $1 OR (username) = $2 LIMIT 1", [newUser.email, newUser.username])
@@ -36,8 +42,18 @@ router.post('/register', async (req, res) => {
 
         // If no exists
         newUser.password = await bcrypt.hash(newUser.password, 10)
-        await db.none("INSERT INTO users(${this:name}) VALUES(${this:csv})", newUser)
-        return res.status(200).json({success: true})
+        const createdUser = await db.one("INSERT INTO users(${this:name}) VALUES(${this:csv})", newUser)
+
+        // Create token
+        const token = jwt.sign({ 
+            id: createdUser.user_id, 
+            email: createdUser.email 
+        }, process.env.TOKEN_KEY,
+        {
+            expiresIn: '24h',
+        });
+
+        return res.status(200).json({success: true, token: token})
     }catch(e){
         throw e
     }
@@ -50,16 +66,26 @@ router.post('/login', async (req, res) => {
         errors,
         isValid
     } = validateLoginInput(req.body);
-
+    
     // If errors return a bad response
     if(!isValid){ return res.status(400).json({success: false, error: errors}) }
 
     // if no errors 
     try{
         const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1 LIMIT 1", req.body.email)
+
+        // Create token
+        const token = jwt.sign({ 
+            id: user.user_id, 
+            email: user.email 
+        }, process.env.TOKEN_KEY,
+        {
+            expiresIn: '24h',
+        });
+
         if(user){
             const validPassword = await bcrypt.compare(req.body.password, user.password)
-            if(validPassword) return res.status(200).json({success: true})
+            if(validPassword) return res.status(200).json({success: true, token: token})
         }
         return res.status(401).json({success: false, error: "Email or password incorrect"})
     }catch(e){
