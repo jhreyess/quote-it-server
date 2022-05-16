@@ -25,10 +25,6 @@ router.post('/register', async (req, res) => {
         password: req.body.password,
     };
 
-
-      // save user token
-      user.token = token;
-
     // Check if user already exists
     try{
         const duplicated = await db.oneOrNone("SELECT * FROM users WHERE (email) = $1 OR (username) = $2 LIMIT 1", [newUser.email, newUser.username])
@@ -42,7 +38,7 @@ router.post('/register', async (req, res) => {
 
         // If no exists
         newUser.password = await bcrypt.hash(newUser.password, 10)
-        const createdUser = await db.one("INSERT INTO users(${this:name}) VALUES(${this:csv})", newUser)
+        const createdUser = await db.one("INSERT INTO users(${this:name}) VALUES(${this:csv}) RETURNING *", newUser)
 
         // Create token
         const token = jwt.sign({ 
@@ -74,16 +70,15 @@ router.post('/login', async (req, res) => {
     try{
         const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1 LIMIT 1", req.body.email)
 
-        // Create token
-        const token = jwt.sign({ 
-            id: user.user_id, 
-            email: user.email 
-        }, process.env.TOKEN_KEY,
-        {
-            expiresIn: '24h',
-        });
-
         if(user){
+            // Create token
+            const token = jwt.sign({ 
+                id: user.user_id, 
+                email: user.email 
+            }, process.env.TOKEN_KEY,
+            {
+                expiresIn: '24h',
+            });
             const validPassword = await bcrypt.compare(req.body.password, user.password)
             if(validPassword) return res.status(200).json({success: true, token: token})
         }
