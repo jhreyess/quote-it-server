@@ -40,11 +40,11 @@ router.delete('/', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
 
     try{    
-        const exists = pg.as.format("EXISTS(SELECT 1 FROM user_likes WHERE user_likes.post_id = posts.post_id)")
-        const likes = pg.as.format("SELECT COUNT(*) AS no_likes FROM user_likes WHERE user_likes.user_id = $1", req.user.id)
+        const exists = pg.as.format("EXISTS(SELECT 1 FROM user_likes WHERE user_likes.post_id = posts.post_id AND user_likes.user_id = $1)", req.user.id)
+        const likes = pg.as.format("SELECT COUNT(*) AS no_likes FROM user_likes WHERE user_likes.post_id = posts.post_id")
         const date = moment().subtract(1, 'days').unix()
         const timestamp = pg.as.format("timestamp >= to_timestamp($1)", date)
-        const posts = await db.manyOrNone("SELECT *, ($1:raw) AS liked, ($2:raw) FROM posts WHERE $3:raw", [exists, likes, timestamp])
+        const posts = await db.manyOrNone("SELECT *, ($1:raw) AS liked, ($2:raw) FROM posts WHERE $3:raw LIMIT 20", [exists, likes, timestamp])
         return res.status(200).send({success: true, data: posts})
     }catch(e){
         console.log(e)
@@ -54,6 +54,44 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:postId', auth, (req, res) => {
     res.status(202).send()
+})
+
+router.get('/:postId/likes', auth, async (req, res) => {
+
+    try{
+        const likes = await db.one("SELECT COUNT(*) FROM user_likes WHERE post_id = $1", [req.params.id])
+        return res.status(200).json({success: true, count: likes.count })
+    }catch(e){
+        console.log(e)
+        return res.status(400).send({success: false, error: "Something went wrong"})
+    }
+})
+
+router.post('/:postId/likes', auth, async (req, res) => {
+
+    const postLike = {
+        user_id: req.user.id,
+        post_id: req.params.postId
+    }
+    try{
+        await db.none("INSERT INTO user_likes(${this:name}) VALUES(${this:csv}) ON CONFLICT (user_id, post_id) DO NOTHING", postLike)
+        return res.status(200).json({success: true})
+    }catch(e){
+        console.log(e)
+        return res.status(400).send({success: false, error: "Something went wrong"})
+    }
+})
+
+router.delete('/:postId/likes', auth, async (req, res) => {
+
+    const postLike = [req.user.id, req.params.postId] 
+    try{
+        await db.none("DELETE FROM user_likes WHERE user_id = $1 AND post_id = $2", postLike)
+        return res.status(200).json({success: true})
+    }catch(e){
+        console.log(e)
+        return res.status(400).send({success: false, error: "Something went wrong"})
+    }
 })
 
 module.exports = router;
