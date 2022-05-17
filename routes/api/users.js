@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
             expiresIn: '24h',
         });
 
-        return res.status(200).json({success: true, token: token})
+        return res.status(200).json({success: true, username: user.username, token: token})
     }catch(e){
         throw e
     }
@@ -80,7 +80,7 @@ router.post('/login', async (req, res) => {
                 expiresIn: '24h',
             });
             const validPassword = await bcrypt.compare(req.body.password, user.password)
-            if(validPassword) return res.status(200).json({success: true, token: token})
+            if(validPassword) return res.status(200).json({success: true, username: user.username, token: token})
         }
         return res.status(401).json({success: false, error: "Email or password incorrect"})
     }catch(e){
