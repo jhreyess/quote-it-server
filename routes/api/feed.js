@@ -18,6 +18,7 @@ router.post('/', auth, async (req, res) => {
         const user = await t.one("SELECT username FROM users WHERE user_id = $1 LIMIT 1", req.user.id)
         newPost.post_by = user.username
         const inserted = await t.one("INSERT INTO posts(${this:name}) VALUES(${this:csv}) RETURNING *", newPost)
+        inserted.creatorActions = true
         return inserted
     })
     .then((post) => { return res.status(200).json({success: true, data: [post]}) } )
@@ -49,6 +50,9 @@ router.get('/', auth, async (req, res) => {
         const date = moment().subtract(1, 'days').unix()
         const timestamp = pg.as.format("timestamp >= to_timestamp($1)", date)
         const posts = await db.manyOrNone("SELECT *, ($1:raw) AS liked, ($2:raw) FROM posts WHERE $3:raw LIMIT 20", [exists, likes, timestamp])
+        posts.forEach(post => {
+            post.creatorActions = post.user_id === req.user.id
+        })
         return res.status(200).json({success: true, data: posts})
     }catch(e){
         console.log(e)

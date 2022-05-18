@@ -10,6 +10,9 @@ router.get('/feed', auth, async (req, res) => {
         const exists = pg.as.format("EXISTS(SELECT 1 FROM user_likes WHERE user_likes.post_id = posts.post_id AND user_likes.user_id = $1)", req.user.id)
         const likes = pg.as.format("SELECT COUNT(*) AS no_likes FROM user_likes WHERE user_likes.post_id = posts.post_id")
         const userPosts = await db.manyOrNone("SELECT *, ($1:raw) AS liked, ($2:raw) FROM posts WHERE user_id = $3", [exists, likes, req.user.id])
+        userPosts.forEach(post => {
+            post.creatorActions = true
+        })
         return res.status(200).json({success: true, data: userPosts})
     }catch(e){
         console.log(e)
@@ -25,6 +28,7 @@ router.get('/likes', auth, async (req, res) => {
         const likedPosts = await db.manyOrNone("SELECT *, ($1:raw) FROM posts WHERE ($2:raw)", [likes, exists])
         likedPosts.forEach(post => {
             post.liked = true
+            post.creatorActions = post.user_id === req.user.id
         });
         return res.status(200).json({success: true, data: likedPosts})
     }catch(e){
