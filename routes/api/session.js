@@ -8,7 +8,7 @@ const validateLoginInput = require("../../validations/login");
 const validateRegisterInput = require("../../validations/register");
 const db = require('../../database')
 
-
+// REGISTER USER
 router.post('/register', async (req, res) => {
     
     // Form validation
@@ -50,12 +50,22 @@ router.post('/register', async (req, res) => {
         {
             expiresIn: '24h',
         });
+
+        // Create refresh token
+        const refreshToken = jwt.sign({ 
+            id: user.user_id, 
+            email: user.email 
+        }, process.env.REFRESH_TOKEN_KEY,
+        {
+            expiresIn: '5m',
+        });
         
         const response = {
             success: true,
             username: createdUser.username,
             userId: createdUser.user_id,
-            token: token
+            token: token,
+            refreshToken: refreshToken
         }
 
         return res.status(200).json(response)
@@ -65,6 +75,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
+// LOG USER
 router.post('/login', async (req, res) => {
     
     // Form validation
@@ -87,15 +98,26 @@ router.post('/login', async (req, res) => {
                 email: user.email 
             }, process.env.TOKEN_KEY,
             {
-                expiresIn: '24h',
+                expiresIn: '2m',
             });
+
+            // Create refresh token
+            const refreshToken = jwt.sign({ 
+                id: user.user_id, 
+                email: user.email 
+            }, process.env.REFRESH_TOKEN_KEY,
+            {
+                expiresIn: '5m',
+            });
+
             const validPassword = await bcrypt.compare(req.body.password, user.password)
             if(validPassword) {
                 const response = {
                     success: true,
                     username: user.username,
                     userId: user.user_id,
-                    token: token
+                    token: token,
+                    refreshToken: refreshToken
                 }
                 return res.status(200).json(response)
             }
@@ -107,6 +129,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// UPDATES USER PASSWORD
 router.post('/password', auth, async (req, res) => {
     try{
         const newPassword = await bcrypt.hash(req.body.password, 10)
@@ -115,6 +138,32 @@ router.post('/password', auth, async (req, res) => {
     }catch(e){
         console.log(e)
         return res.status(400).json({success: false, error: "Something went wrong"})
+    }
+})
+
+// REFRESH JWT TOKEN
+router.post('/refresh', async (req, res) => {
+
+    const token = req.body.token 
+    if (!token) {
+        return res.status(403).send("A token is required for authentication");
+    }
+    try {
+
+        const user = jwt.verify(token, process.env.REFRESH_TOKEN_KEY);
+
+        // Create token
+        const newToken = jwt.sign({ 
+            id: user.user_id, 
+            email: user.email 
+        }, process.env.TOKEN_KEY,
+        {
+            expiresIn: '5m',
+        });
+        
+        return res.status(200).json({success: true, token: newToken});
+    } catch (err) {
+        return res.status(401).send("Invalid Token");
     }
 })
 
