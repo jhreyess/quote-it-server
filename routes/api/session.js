@@ -50,10 +50,18 @@ router.post('/register', async (req, res) => {
         {
             expiresIn: '24h',
         });
+        
+        const response = {
+            success: true,
+            username: createdUser.username,
+            userId: createdUser.user_id,
+            token: token
+        }
 
-        return res.status(200).json({success: true, username: user.username, token: token})
+        return res.status(200).json(response)
     }catch(e){
-        throw e
+        console.log(e)
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 });
 
@@ -82,11 +90,20 @@ router.post('/login', async (req, res) => {
                 expiresIn: '24h',
             });
             const validPassword = await bcrypt.compare(req.body.password, user.password)
-            if(validPassword) return res.status(200).json({success: true, username: user.username, token: token})
+            if(validPassword) {
+                const response = {
+                    success: true,
+                    username: user.username,
+                    userId: user.user_id,
+                    token: token
+                }
+                return res.status(200).json(response)
+            }
+
         }
         return res.status(401).json({success: false, error: "Email or password incorrect"})
     }catch(e){
-        throw e
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 });
 

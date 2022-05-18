@@ -5,6 +5,7 @@ const pg = require('pg-promise')();
 const db = require('../../database')
 const auth = require('../middlewares/auth')
 
+// CREATE A NEW POST
 router.post('/', auth, async (req, res) => {
 
     const newPost = {
@@ -24,6 +25,7 @@ router.post('/', auth, async (req, res) => {
 
 })
 
+// DELETE A POST
 router.delete('/', auth, async (req, res) => {
 
     const post = [req.user.id, req.body.postId]
@@ -33,10 +35,12 @@ router.delete('/', auth, async (req, res) => {
         return res.status(200).json({success: true})
     }catch(e){
         console.log(e)
-        return res.status(400).send()
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 })
 
+
+// GET FEED
 router.get('/', auth, async (req, res) => {
 
     try{    
@@ -45,13 +49,14 @@ router.get('/', auth, async (req, res) => {
         const date = moment().subtract(1, 'days').unix()
         const timestamp = pg.as.format("timestamp >= to_timestamp($1)", date)
         const posts = await db.manyOrNone("SELECT *, ($1:raw) AS liked, ($2:raw) FROM posts WHERE $3:raw LIMIT 20", [exists, likes, timestamp])
-        return res.status(200).send({success: true, data: posts})
+        return res.status(200).json({success: true, data: posts})
     }catch(e){
         console.log(e)
-        return res.status(400).send({success: false, error: "Something went wrong"})
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 })
 
+// SYNC OFFLINE LIKES
 router.post('/sync', auth, async (req, res) => {
 
     const colset = pg.helpers.ColumnSet(['post_id', 'user_id'], {table: 'posts'})
@@ -64,17 +69,14 @@ router.post('/sync', auth, async (req, res) => {
 
     try{
         await db.none(query);
-        return res.status(200).send({success: true})
+        return res.status(200).json({success: true})
     }catch(e){
         console.log(e)
-        return res.status(400).send({success: false, error: "Something went wrong"})
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 })
 
-router.get('/:postId', auth, (req, res) => {
-    res.status(202).send()
-})
-
+// GET NUMBER OF LIKES OF A POST
 router.get('/:postId/likes', auth, async (req, res) => {
 
     try{
@@ -82,10 +84,12 @@ router.get('/:postId/likes', auth, async (req, res) => {
         return res.status(200).json({success: true, count: likes.count })
     }catch(e){
         console.log(e)
-        return res.status(400).send({success: false, error: "Something went wrong"})
+        return res.status(400).json({success: false, error: "Something went wrong"})
     }
 })
 
+
+// LIKE A POST
 router.post('/:postId/likes', auth, async (req, res) => {
 
     const postLike = {
@@ -101,6 +105,7 @@ router.post('/:postId/likes', auth, async (req, res) => {
     }
 })
 
+// UN-LIKE A POST
 router.delete('/:postId/likes', auth, async (req, res) => {
 
     const postLike = [req.user.id, req.params.postId] 
