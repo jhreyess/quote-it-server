@@ -2,6 +2,8 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken')
 
+const auth = require('../middlewares/auth')
+
 const validateLoginInput = require("../../validations/login");
 const validateRegisterInput = require("../../validations/register");
 const db = require('../../database')
@@ -87,5 +89,16 @@ router.post('/login', async (req, res) => {
         throw e
     }
 });
+
+router.post('/password', auth, async (req, res) => {
+    try{
+        const newPassword = await bcrypt.hash(req.body.password, 10)
+        await db.none("UPDATE users SET password = $1 WHERE user_id = $2", [newPassword, req.user.id])
+        return res.status(200).json({success: true})
+    }catch(e){
+        console.log(e)
+        return res.status(400).json({success: false, error: "Something went wrong"})
+    }
+})
 
 module.exports = router;
