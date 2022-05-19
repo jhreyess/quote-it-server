@@ -48,17 +48,14 @@ router.post('/register', async (req, res) => {
             email: createdUser.email 
         }, process.env.TOKEN_KEY,
         {
-            expiresIn: '24h',
+            expiresIn: process.env.TOKEN_LIMIT_TIME,
         });
 
         // Create refresh token
         const refreshToken = jwt.sign({ 
             id: user.user_id, 
             email: user.email 
-        }, process.env.REFRESH_TOKEN_KEY,
-        {
-            expiresIn: '5m',
-        });
+        }, process.env.REFRESH_TOKEN_KEY);
         
         const response = {
             success: true,
@@ -98,17 +95,14 @@ router.post('/login', async (req, res) => {
                 email: user.email 
             }, process.env.TOKEN_KEY,
             {
-                expiresIn: '2m',
+                expiresIn: process.env.TOKEN_LIMIT_TIME,
             });
 
             // Create refresh token
             const refreshToken = jwt.sign({ 
                 id: user.user_id, 
                 email: user.email 
-            }, process.env.REFRESH_TOKEN_KEY,
-            {
-                expiresIn: '5m',
-            });
+            }, process.env.REFRESH_TOKEN_KEY);
 
             const validPassword = await bcrypt.compare(req.body.password, user.password)
             if(validPassword) {
