@@ -63,13 +63,19 @@ router.get('/', auth, async (req, res) => {
 // SYNC OFFLINE LIKES
 router.post('/sync', auth, async (req, res) => {
 
-    const colset = pg.helpers.ColumnSet(['post_id', 'user_id'], {table: 'posts'})
+    const ids = req.body.values
+
+    if(typeof ids === 'undefined' || ids.length < 1){
+        return res.status(200).json({success: false, error: "No values passed"})
+    }
+
+    const colset = new pg.helpers.ColumnSet(['post_id', 'user_id'], {table: 'posts'})
     const values = []
-    req.body.values.forEach(postId => {
+    ids.forEach(postId => {
         values.append({'post_id': postId, 'user_id': req.user.id})
     });
     const onConflict = " ON CONFLICT (user_id, post_id) DO NOTHING"
-    const query = pgp.helpers.insert(values, colset) + onConflict;
+    const query = pg.helpers.insert(values, colset) + onConflict;
 
     try{
         await db.none(query);
