@@ -42,27 +42,14 @@ router.post('/register', async (req, res) => {
         newUser.password = await bcrypt.hash(newUser.password, 10)
         const createdUser = await db.one("INSERT INTO users(${this:name}) VALUES(${this:csv}) RETURNING *", newUser)
 
-        // Create token
-        const token = jwt.sign({ 
-            id: createdUser.user_id, 
-            email: createdUser.email 
-        }, process.env.TOKEN_KEY,
-        {
-            expiresIn: process.env.TOKEN_LIMIT_TIME,
-        });
-
-        // Create refresh token
-        const refreshToken = jwt.sign({ 
-            id: user.user_id, 
-            email: user.email 
-        }, process.env.REFRESH_TOKEN_KEY);
+        const tokens = generateTokens(createdUser)
         
         const response = {
             success: true,
             username: createdUser.username,
             userId: createdUser.user_id,
-            token: token,
-            refreshToken: refreshToken
+            token: tokens.accessToken,
+            refreshToken: tokens.refreshToken
         }
 
         return res.status(200).json(response)
@@ -89,20 +76,8 @@ router.post('/login', async (req, res) => {
         const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1 LIMIT 1", req.body.email)
 
         if(user){
-            // Create token
-            const token = jwt.sign({ 
-                id: user.user_id, 
-                email: user.email 
-            }, process.env.TOKEN_KEY,
-            {
-                expiresIn: process.env.TOKEN_LIMIT_TIME,
-            });
-
-            // Create refresh token
-            const refreshToken = jwt.sign({ 
-                id: user.user_id, 
-                email: user.email 
-            }, process.env.REFRESH_TOKEN_KEY);
+            
+            const tokens = generateTokens(user)
 
             const validPassword = await bcrypt.compare(req.body.password, user.password)
             if(validPassword) {
@@ -110,8 +85,8 @@ router.post('/login', async (req, res) => {
                     success: true,
                     username: user.username,
                     userId: user.user_id,
-                    token: token,
-                    refreshToken: refreshToken
+                    token: tokens.accessToken,
+                    refreshToken: tokens.refreshToken
                 }
                 return res.status(200).json(response)
             }
@@ -144,21 +119,47 @@ router.post('/refresh', async (req, res) => {
     }
     try {
 
-        const user = jwt.verify(token, process.env.REFRESH_TOKEN_KEY);
+        const payload = jwt.verify(token, process.env.REFRESH_TOKEN_KEY);
 
         // Create token
-        const newToken = jwt.sign({ 
-            id: user.user_id, 
-            email: user.email 
-        }, process.env.TOKEN_KEY,
-        {
-            expiresIn: '5m',
-        });
+        const newToken = refreshToken(payload)
         
         return res.status(200).json({success: true, token: newToken});
     } catch (err) {
         return res.status(401).send("Invalid Token");
     }
 })
+
+const generateTokens = user => {
+
+    // Create token
+    const accessToken = jwt.sign({ 
+        id: user.user_id, 
+        email: user.email 
+    }, process.env.TOKEN_KEY,
+    {
+        expiresIn: process.env.TOKEN_LIMIT_TIME,
+    });
+
+    // Create refresh token
+    const refreshToken = jwt.sign({ 
+        id: user.user_id, 
+        email: user.email 
+    }, process.env.REFRESH_TOKEN_KEY);
+
+    const tokens = { accessToken, refreshToken }
+    return tokens;
+}
+
+const refreshToken = payload => {
+    
+    return jwt.sign({ 
+        id: payload.id, 
+        email: payload.email 
+    }, process.env.TOKEN_KEY,
+    {
+        expiresIn: process.env.TOKEN_LIMIT_TIME,
+    });
+}
 
 module.exports = router;
