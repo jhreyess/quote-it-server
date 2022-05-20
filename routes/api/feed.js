@@ -27,17 +27,28 @@ router.post('/', auth, async (req, res) => {
 })
 
 // DELETE A POST
-router.delete('/', auth, async (req, res) => {
+router.delete('/:postId', auth, async (req, res) => {
 
-    const post = [req.user.id, req.body.postId]
-    console.log(req.user)
-    try{    
-        await db.none("DELETE FROM posts WHERE user_id = $1 AND post_id = $2", post)
-        return res.status(200).json({success: true})
-    }catch(e){
-        console.log(e)
-        return res.status(400).json({success: false, error: "Something went wrong"})
+    const post = { 
+        id: req.params.postId, 
+        userId: req.user.id 
     }
+    
+    db.task(async t => {
+        const toDelete = await t.oneOrNone("SELECT user_id FROM posts WHERE post_id = $1", post.id) 
+
+        if(!toDelete) throw {code: 400, msg: "Resource doesn't exist"}
+        if(toDelete.user_id != post.userId) throw {code: 403, msg: "Permission Denied"}
+
+        await t.none("DELETE FROM posts WHERE post_id = $1 AND user_id = $2", [post.id, post.userId])
+
+        return
+    })
+    .then( () => {return res.status(200).json({success: true})})
+    .catch(e => {
+        if(e.code && e.msg) { return res.status(e.code).json({success: false, error: e.msg}) }
+        return res.status(400).json({success: false, error: "Something went wrong"})
+    })        
 })
 
 
