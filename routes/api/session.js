@@ -8,6 +8,18 @@ const validateLoginInput = require("../../validations/login");
 const validateRegisterInput = require("../../validations/register");
 const db = require('../../database')
 
+// DELETE USER
+router.delete('/', auth, async (req, res) => {
+
+    try{
+        await db.one("DELETE FROM users WHERE user_id = $1 RETURNING *", req.user.id);
+        return res.status(200).json({success: true})
+    }catch(e){
+        return res.status(400).json({success: false, error: "Something went wrong"})
+    }
+
+});
+
 // REGISTER USER
 router.post('/register', async (req, res) => {
     
