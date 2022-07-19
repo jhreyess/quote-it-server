@@ -7,6 +7,9 @@ server.set('port', process.env.PORT || 8080);
 
 server.use(express.json());
 
+// Serving static files
+server.use(express.static(__dirname+'/client/build'))
+
 // Endpoints
 server.use(routes)
 
