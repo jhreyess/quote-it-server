@@ -5,6 +5,21 @@ const Policy = styled.div`
     padding: 2em 8em;
     background-color: #333333;
     border-radius: 18px;
+    @media(max-width: 768px){
+        margin: 0;
+        padding: 1em 2em;
+        font-size: 2vw;
+    }
+    @media(max-width: 500px){
+        font-size: 0.75em;
+    }
+`
+const Hyperlink = styled.a`
+    color: #AAF;
+    text-decoration: none;
+    &:hover{
+        text-decoration: underline;
+    }
 `
 
 const Privacy = () => {
@@ -21,7 +36,7 @@ const Privacy = () => {
                 <li><strong>Aplicaciones móviles</strong> de Quote It! como</li>
                 <ul><li>Quote It!</li></ul>
                 <li><strong>Sitios Web</strong> de Quote It! como</li>
-                <ul><li><a href="https://quote-it-app.herokuapp.com/">quote-it-app.herokuapp.com</a></li></ul>
+                <ul><li><Hyperlink href="https://quote-it-app.herokuapp.com/">quote-it-app.herokuapp.com</Hyperlink></li></ul>
             </ul>
             <p>Los productos y servicios de Quote It! son propiedad y están operados por Josué Humberto Reyes Suárez, a la que se hace referencia como "JHRS", "nos" o "nosotros". Cuando nos referimos al usuario de nuestros servicios,
                 usamos el término "usuario" o "usted".
@@ -108,7 +123,7 @@ const Privacy = () => {
             <p>Si tienes alguna pregunta sobre esta Política de Privacidad, puedes contactarnos a traves de:</p>
             <ul>
                 <li><p>Email: contact.jhrs@gmail.com</p></li>
-                <li><p>Visitando nuestra página: <a href="https://quote-it-app.herokuapp.com/" rel="noreferrer" target="_blank">https://quote-it-app.herokuapp.com/</a></p></li>
+                <li><p>Visitando nuestra página: <Hyperlink href="https://quote-it-app.herokuapp.com/" rel="noreferrer" target="_blank">https://quote-it-app.herokuapp.com/</Hyperlink></p></li>
             </ul>
         </Policy>
     )}
